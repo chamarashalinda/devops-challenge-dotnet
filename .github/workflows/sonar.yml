@@ -1,0 +1,38 @@
+name: SonarCloud Analysis with Coverage Gate
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '5.x'
+
+      - name: Install SonarCloud Scanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Run Tests and Generate Code Coverage
+        run: |
+          cd src/DevOpsChallenge.SalesApi
+          dotnet restore
+          dotnet build --no-restore
+          dotnet test --no-build --collect:"XPlat Code Coverage" /p:CoverletOutputFormat=cobertura
+
+      - name: Run SonarCloud Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin /k:"your_project_key" /o:"your_organization" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths="**/coverage.cobertura.xml"
+          dotnet build
+          dotnet sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"

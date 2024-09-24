@@ -1,0 +1,20 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-%s-ingress" .Release.Name .Values.env }}
+  labels:
+    {{- include "sales-api.labels" . | nindent 4 }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ printf "%s-%s" .Release.Name .Values.env }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

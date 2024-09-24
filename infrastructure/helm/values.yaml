@@ -1,0 +1,41 @@
+# values.yaml
+image:
+  repository: my-docker-repo/my-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+env: dev
+
+deployment:
+  replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+hpa:
+  min: 1
+  max: 10
+  metrics:
+    targetCpuAvg: 70
+    targetMemAvg: 70
+
+healthCheck:
+  readinessPath: /health/readiness
+  livenessPath: /health/liveness
+
+ingress:
+  enabled: true
+  domain: sales-api.example.com
+
+secrets:
+  db: my-db-secret

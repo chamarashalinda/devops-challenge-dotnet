@@ -1,0 +1,3 @@
+ingress:
+  enabled: true
+  domain: sales-api.qa.example.com

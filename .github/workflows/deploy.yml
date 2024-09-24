@@ -1,0 +1,105 @@
+name: Deploy to GKE
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - release*
+
+env:
+  IMAGE: sales-api
+  REGION: us-central1
+  ZONE: us-central1-a
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || startsWith(github.ref_name, 'release-') && 'qa' || 'dev' }}
+
+    steps:
+      - id: checkout
+        name: Checkout code
+        uses: actions/checkout@v2
+
+      - id: get_sha
+        name: Get short SHA
+        uses: benjlevesque/short-sha@v2.2
+        with:
+          length: 8
+          variable_name: SHORT_SHA
+
+      - id: auth
+        name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.WIP }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+          access_token_lifetime: 300s
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          install_components: 'gke-gcloud-auth-plugin'
+
+      - name: Docker build
+        run: docker build -t ${{ env.IMAGE }} .
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Docker push
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          docker tag ${{ env.IMAGE }} ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ env.SHORT_SHA }}-${{ env.NAMESPACE }}
+          docker tag ${{ env.IMAGE }} ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:latest-${{ env.NAMESPACE }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ env.SHORT_SHA }}-${{ env.NAMESPACE }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:latest-${{ env.NAMESPACE }}
+    
+  migrate-db:
+    runs-on: self-hosted
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || startsWith(github.ref_name, 'release-') && 'qa' || 'dev' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '5.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Build Project
+        run: dotnet build
+
+      - name: Migrate Database
+        run: |
+          echo "Running database migrations..."
+          dotnet ef database update --startup-project ./src/DevOpsChallenge.SalesApi/
+        env:
+          ASPNETCORE_ENVIRONMENT: ${{ env.ASPNETCORE_ENVIRONMENT }}
+          ConnectionStrings__Database: ${{ secrets.DB_CONNECTION_STRING }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || startsWith(github.ref_name, 'release-') && 'qa' || 'dev' }}
+
+    steps:
+      - name: Helm deploy ${{ env.NAMESPACE }}
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER_ID }} --region=${{ env.ZONE }}
+          helm upgrade --install --namespace ${{ env.NAMESPACE }} sales-api ./infrastructure/helm -f ./infrastructure/helm/values.yaml -f ./infrastructure/helm/${{ env.HELM_VALUES_FILE }} --set image.tag=${{ env.SHORT_SHA }}-${{ env.NAMESPACE }}

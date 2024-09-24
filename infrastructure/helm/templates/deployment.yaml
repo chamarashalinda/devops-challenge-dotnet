@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-%s" .Release.Name .Values.env }}
+  labels:
+    {{- include "sales-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicaCount | default 2 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  selector:
+    matchLabels:
+      {{- include "sales-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sales-api.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ printf "%s-%s-%s" .Release.Name .Values.env "sql-proxy" }}
+      restartPolicy: Always
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "{{ .Values.env }}"
+            - name: ConnectionStrings__Database
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.secrets.db }}"
+                  key: ConnectionString
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.readinessPath | default "/health" }}
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.livenessPath | default "/health" }}
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
