@@ -92,9 +92,9 @@ Helm charts are used to manage the deployment configurations for applications, m
 2. Build and package the application as a container in a CI/CD pipeline ready for deployment :white_check_mark:
 
 ### Good to have
-1. The Swagger UI interface should display the code comments written by the API developer.
+1. The Swagger UI interface should display the code comments written by the API developer. :white_check_mark:
 
-2. `Server: Kestrel`. This header should not be present in responses sent by the server.
+2. `Server: Kestrel`. This header should not be present in responses sent by the server. :white_check_mark:
 
 3. Creating an index.
 
