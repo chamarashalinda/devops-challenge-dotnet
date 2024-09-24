@@ -96,7 +96,7 @@ Helm charts are used to manage the deployment configurations for applications, m
 
 2. `Server: Kestrel`. This header should not be present in responses sent by the server. :white_check_mark:
 
-3. Creating an index.
+3. Creating an index. :white_check_mark:
 
 ### Attempt
 * Getting started documentation for a new developer.
