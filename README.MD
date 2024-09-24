@@ -1,4 +1,141 @@
-# DevOps Challenge .NET
+# Developer Guide for DevOps Challenge Sales API
+
+## Table of Contents
+1. [Clone the Repository](#clone-the-repository)
+2. [Setup the Database](#setup-the-database)
+   - [Run MS SQL Server Using Docker](#run-ms-sql-server-using-docker)
+   - [Create the Database](#create-the-database)
+   - [Configure the Application](#configure-the-application)
+   - [Set Environment Variables](#set-environment-variables)
+3. [Build and Run the Project Locally](#build-and-run-the-project-locally)
+4. [Run Database Migrations](#run-database-migrations)
+5. [DevOps Challenge .NET (Technical Overview)](#devops-challenge-net-technical-guide)
+6. [Check List](#check-list)
+
+---
+
+## Clone the Repository
+
+Clone the repository to your local machine using the following command:
+
+```bash
+git clone https://github.com/swivel/sales-api.git
+cd sales-api
+```
+
+## Setup the Database
+
+### Run MS SQL Server Using Docker
+
+For development purposes, you can run MS SQL Server in a Docker container. This allows you to have a consistent and easily manageable environment.
+
+1. **Pull and Run the SQL Server Docker Image**:
+
+   ```bash
+   docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrongPassword!" -p 1433:1433 --name mssql -d mcr.microsoft.com/mssql/server:2019-latest
+   ```
+
+   - **ACCEPT_EULA=Y**: Accepts the SQL Server license agreement.
+   - **SA_PASSWORD=YourStrongPassword!**: Sets the `sa` (system administrator) password. Replace `YourStrongPassword!` with a secure password.
+   - **-p 1433:1433**: Maps the default SQL Server port 1433 from the container to your local machine.
+
+### Create the Database
+
+Once the SQL Server container is running, connect to it using SQL Server Management Studio (SSMS), Azure Data Studio, or the command line.
+
+1. **Create a New Database** (e.g., `SalesAPI`):
+
+   Using SQLCMD inside the container:
+
+   ```bash
+   docker exec -it mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrongPassword! -Q "CREATE DATABASE SalesAPI;"
+   ```
+
+### Configure the Application
+
+1. **Copy the Sample Configuration File**:
+
+   Copy the sample appsettings file to create a development configuration:
+
+   ```bash
+   cp src/DevOpsChallenge.SalesApi/appsettings.Development.sample.json src/DevOpsChallenge.SalesApi/appsettings.Development.json
+   ```
+
+2. **Create the Connection String**:
+
+   Update the `appsettings.Development.json` file with the connection string for the MS SQL Server running in Docker.
+
+   **Example Connection String**:
+   ```json
+   {
+     "ConnectionStrings": {
+       "Database": "Server=localhost,1433;Database=SalesAPI;User Id=sa;Password=YourStrongPassword!;"
+     }
+   }
+   ```
+
+### Set Environment Variables
+
+Export the required environment variables for development:
+
+```bash
+export ASPNETCORE_ENVIRONMENT=Development
+export ConnectionStrings__Database="Server=localhost,1433;Database=SalesAPI;User Id=sa;Password=YourStrongPassword!;"
+```
+
+## Build and Run the Project Locally
+
+### Build the Project
+
+To build the project locally, navigate to the source folder and run:
+
+```bash
+cd src/DevOpsChallenge.SalesApi
+dotnet build
+```
+
+This command will compile the application and ensure all dependencies are properly restored.
+
+### Run the Project
+
+After building, you can run the application locally:
+
+```bash
+dotnet run
+```
+
+The application will start, and you can access the API at `http://localhost:5000`.
+
+## Run Database Migrations
+
+Before running the application, ensure that the database schema is up to date by running the migrations.
+
+1. **Install EF Core Tools Globally**:
+
+   Make sure the EF Core tools are installed globally on your machine:
+
+   ```bash
+   dotnet tool install --global dotnet-ef
+   ```
+
+2. **Run Migrations Locally**:
+
+   Execute the migration command from the project directory to update the database schema:
+
+   ```bash
+   cd src/DevOpsChallenge.SalesApi
+   dotnet ef database update
+   ```
+
+3. **Verify the Migrations**:
+
+   Confirm that the database schema has been updated in the MS SQL Server instance by checking the tables and indexes in the `SalesAPI` database.
+
+---
+
+By following these steps, you should be able to set up your development environment, build and run the application, and ensure the database is correctly configured with the necessary migrations.
+
+# DevOps Challenge .NET (Technical Guide)
 
 ## Branching Strategy
 
@@ -99,7 +236,7 @@ Helm charts are used to manage the deployment configurations for applications, m
 3. Creating an index. :white_check_mark:
 
 ### Attempt
-* Getting started documentation for a new developer.
+* Getting started documentation for a new developer. :white_check_mark:
 * Configuring Git's behaviour for particular files. :white_check_mark:
 * Versioning of artifacts. :white_check_mark:
 * Linting and code quality analysis. :white_check_mark:
